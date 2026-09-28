@@ -377,12 +377,15 @@ if run_analysis and st.session_state.cart:
     summary_list = []
     for (s_type, s_name), books_dict in seller_stock.items():
         count = len(books_dict)
-        book_names = list(books_dict.keys())
+        # 도서 목록을 줄바꿈(<br>)으로 표시하여 시인성 확보
+        book_lines = [f"• {title} ({price:,}원)" for title, price in books_dict.items()]
+        book_list_str = "<br>".join(book_lines)
+        
         total_book_price = sum(books_dict.values())
         link_url = seller_urls.get((s_type, s_name), "")
 
         if link_url:
-            seller_display = f'<a href="{link_url}" target="_blank" style="color: #0366d6; font-weight: bold; text-decoration: underline;">{s_name} ↗</a>'
+            seller_display = f'<a href="{link_url}" target="_blank" style="color: #4da6ff; font-weight: bold; text-decoration: underline;">{s_name} ↗</a>'
         else:
             seller_display = s_name
 
@@ -390,8 +393,8 @@ if run_analysis and st.session_state.cart:
             "판매처 유형": s_type,
             "판매처/매장명": seller_display,
             "보유 권수": count,
-            "보유 도서 목록": ", ".join(book_names),
-            "도서 가격 합계(원)": f"{total_book_price:,}원",
+            "보유 도서 목록": book_list_str,
+            "도서 가격 합계": f"<b>{total_book_price:,}원</b>",
             "정렬용_합계": total_book_price
         })
 
@@ -405,24 +408,57 @@ if run_analysis and st.session_state.cart:
         ).reset_index(drop=True)
 
         df_sorted.insert(0, "우선순위", range(1, len(df_sorted) + 1))
-        df_sorted["보유율"] = df_sorted["보유 권수"].apply(lambda x: f"{x}/{total_books}권")
+        df_sorted["보유율"] = df_sorted["보유 권수"].apply(lambda x: f"<b>{x}/{total_books}권</b>")
 
-        cols = ["우선순위", "판매처 유형", "판매처/매장명", "보유율", "도서 가격 합계(원)", "보유 도서 목록"]
+        cols = ["우선순위", "판매처 유형", "판매처/매장명", "보유율", "도서 가격 합계", "보유 도서 목록"]
         result_df = df_sorted[cols]
 
-        styled_html = result_df.head(25).to_html(
-            escape=False,
-            index=False,
-            classes="table table-striped",
-            justify="center"
-        )
-        custom_table = f"""
+        # Streamlit에서 HTML 표가 깨지지 않고 줄바꿈이 정상 적용되는 테이블 스타일
+        html_table = result_df.head(25).to_html(escape=False, index=False)
+        
+        custom_css = """
         <style>
-            table {{ border-collapse: collapse; width: 100%; font-size: 14px; text-align: left; }}
-            th {{ background-color: #f2f4f7; padding: 10px; border-bottom: 2px solid #ddd; }}
-            td {{ padding: 10px; border-bottom: 1px solid #eee; }}
-            tr:hover {{ background-color: #f9f9f9; }}
+            .custom-table-container {
+                width: 100%;
+                overflow-x: auto;
+                margin-top: 15px;
+            }
+            .custom-table-container table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+            .custom-table-container th {
+                background-color: #262730;
+                color: #ffffff;
+                padding: 12px 10px;
+                border: 1px solid #41444c;
+                text-align: center;
+                white-space: nowrap;
+            }
+            .custom-table-container td {
+                padding: 10px 12px;
+                border: 1px solid #31333F;
+                vertical-align: middle;
+            }
+            .custom-table-container td:nth-child(1),
+            .custom-table-container td:nth-child(2),
+            .custom-table-container td:nth-child(3),
+            .custom-table-container td:nth-child(4),
+            .custom-table-container td:nth-child(5) {
+                text-align: center;
+                white-space: nowrap;
+            }
+            .custom-table-container td:nth-child(6) {
+                text-align: left;
+                min-width: 280px;
+            }
+            .custom-table-container tr:nth-child(even) {
+                background-color: #1a1c23;
+            }
         </style>
-        {styled_html}
         """
-        st.markdown(custom_table, unsafe_allow_html=True)
+        
+        # unsafe_allow_html=True 옵션으로 HTML 태그와 줄바꿈 해석 활성화
+        st.markdown(f"{custom_css}<div class='custom-table-container'>{html_table}</div>", unsafe_allow_html=True)
