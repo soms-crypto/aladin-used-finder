@@ -377,9 +377,9 @@ if run_analysis and st.session_state.cart:
     summary_list = []
     for (s_type, s_name), books_dict in seller_stock.items():
         count = len(books_dict)
-        # 도서 목록을 줄바꿈(<br>)으로 표시하여 시인성 확보
+        # 줄바꿈과 가격을 포함한 도서 목록 생성
         book_lines = [f"• {title} ({price:,}원)" for title, price in books_dict.items()]
-        book_list_str = "<br>".join(book_lines)
+        book_list_html = "<br>".join(book_lines)
         
         total_book_price = sum(books_dict.values())
         link_url = seller_urls.get((s_type, s_name), "")
@@ -393,7 +393,7 @@ if run_analysis and st.session_state.cart:
             "판매처 유형": s_type,
             "판매처/매장명": seller_display,
             "보유 권수": count,
-            "보유 도서 목록": book_list_str,
+            "보유 도서 목록": book_list_html,
             "도서 가격 합계": f"<b>{total_book_price:,}원</b>",
             "정렬용_합계": total_book_price
         })
@@ -413,52 +413,63 @@ if run_analysis and st.session_state.cart:
         cols = ["우선순위", "판매처 유형", "판매처/매장명", "보유율", "도서 가격 합계", "보유 도서 목록"]
         result_df = df_sorted[cols]
 
-        # Streamlit에서 HTML 표가 깨지지 않고 줄바꿈이 정상 적용되는 테이블 스타일
-        html_table = result_df.head(25).to_html(escape=False, index=False)
-        
-        custom_css = """
+        # 1. HTML 표 생성 (줄바꿈 허용)
+        table_body = ""
+        for _, row in result_df.head(25).iterrows():
+            table_body += f"""
+            <tr>
+                <td style="text-align:center;">{row['우선순위']}</td>
+                <td style="text-align:center;">{row['판매처 유형']}</td>
+                <td style="text-align:center;">{row['판매처/매장명']}</td>
+                <td style="text-align:center;">{row['보유율']}</td>
+                <td style="text-align:center;">{row['도서 가격 합계']}</td>
+                <td style="text-align:left; line-height: 1.6;">{row['보유 도서 목록']}</td>
+            </tr>
+            """
+
+        full_html = f"""
         <style>
-            .custom-table-container {
-                width: 100%;
-                overflow-x: auto;
-                margin-top: 15px;
-            }
-            .custom-table-container table {
+            .custom-table {{
                 width: 100%;
                 border-collapse: collapse;
                 font-size: 14px;
-                line-height: 1.6;
-            }
-            .custom-table-container th {
+                color: #ffffff;
+                background-color: #0e1117;
+                margin-top: 10px;
+            }}
+            .custom-table th {{
                 background-color: #262730;
                 color: #ffffff;
                 padding: 12px 10px;
                 border: 1px solid #41444c;
                 text-align: center;
                 white-space: nowrap;
-            }
-            .custom-table-container td {
+            }}
+            .custom-table td {{
                 padding: 10px 12px;
-                border: 1px solid #31333F;
+                border: 1px solid #31333f;
                 vertical-align: middle;
-            }
-            .custom-table-container td:nth-child(1),
-            .custom-table-container td:nth-child(2),
-            .custom-table-container td:nth-child(3),
-            .custom-table-container td:nth-child(4),
-            .custom-table-container td:nth-child(5) {
-                text-align: center;
-                white-space: nowrap;
-            }
-            .custom-table-container td:nth-child(6) {
-                text-align: left;
-                min-width: 280px;
-            }
-            .custom-table-container tr:nth-child(even) {
-                background-color: #1a1c23;
-            }
+            }}
+            .custom-table tr:nth-child(even) {{
+                background-color: #161922;
+            }}
         </style>
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>우선순위</th>
+                    <th>판매처 유형</th>
+                    <th>판매처/매장명</th>
+                    <th>보유율</th>
+                    <th>도서 가격 합계</th>
+                    <th>보유 도서 목록</th>
+                </tr>
+            </thead>
+            <tbody>
+                {table_body}
+            </tbody>
+        </table>
         """
         
-        # unsafe_allow_html=True 옵션으로 HTML 태그와 줄바꿈 해석 활성화
-        st.markdown(f"{custom_css}<div class='custom-table-container'>{html_table}</div>", unsafe_allow_html=True)
+        # st.markdown 대신 HTML 전용 랜더러 사용 (텍스트로 깨지는 현상 완벽 방지)
+        st.html(full_html)
